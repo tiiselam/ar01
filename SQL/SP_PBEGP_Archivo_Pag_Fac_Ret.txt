@@ -1,4 +1,6 @@
 /****** Object:  StoredProcedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]    Script Date: 6/22/2017 4:44:08 PM ******/
+
+
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
