@@ -5,7 +5,7 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-ALTER procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
+create procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
 @fecha as datetime
 as
@@ -86,7 +86,7 @@ begin
 		case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when 'IIBB' then ltrim(RTRIM(ISNULL(SUBSTRING(C.Descripcion,CASE WHEN CHARINDEX('-',C.Descripcion,1)=0 THEN 3 ELSE CHARINDEX('-',C.Descripcion,1)+1 END,20),''))) end+','+	--- campo 13 Provincia
 		case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when 'IIBB' then ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 else p.porc end AS DECIMAL(18,2))),'') end+','+	--- campo 14 Porcentaje
 		case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when 'IIBB' then ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 else p.porc end AS DECIMAL(18,2))),'') end+','+	--- campo 15 alicuota
-		case when left(r.nfRET_Retencion_ID,3)='GCI' then isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Monto_Retenciones+x.nfRET_Importe_sin_Impues) from nfRET_GL10010 x where x.VENDORID=trx.VENDORID and (x.nfRET_Period_Month=month(trx.DOCDATE) and x.nfRET_Periodo_Year=year(trx.DOCDATE) and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID)) AS DECIMAL(18,2))),'') end +','+	--- campo 16 Monto acumulado
+		case when left(r.nfRET_Retencion_ID,3)='GCI' then isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Importe_Retencion) from nfRET_GL10020 x where x.VENDORID=trx.VENDORID and (month(x.nfRET_Fec_Retencion)=month(trx.DOCDATE) and year(x.nfRET_Fec_Retencion)=year(trx.DOCDATE) and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID and x.DEX_ROW_ID<=r.DEX_ROW_ID)) AS DECIMAL(18,2))),'') end +','+	--- campo 16 Monto acumulado
 		'0.00,,'+(SELECT STUFF((SELECT '/'+RTRIM(D) FROM #TMP WHERE V = TRX.VCHRNMBR and i=r.nfRET_Retencion_ID FOR XML PATH('')),1,1,''))+','	--- campo 17  pago a cuenta campo 18 campo 19 Relacion Retencion Factura
 	from tblPBE002 trx
 	inner join nfRET_GL10020 r on R.APFRDCNM=TRX.VCHRNMBR 
@@ -99,7 +99,7 @@ begin
 	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
 	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
 	where trx.SelectedToSave=1
-	group by r.nfRET_Retencion_ID,trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc
+	group by r.nfRET_Retencion_ID,trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
 	DROP TABLE #TMP
 	---Cabecera
 	insert into tblpbe999 (id,txtfield)
