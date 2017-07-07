@@ -19,11 +19,11 @@ begin
 			convert(varchar,cast(trx.DOCAMNT as decimal(11,2)))+','+------ campo 8 Importe del pago
 			rtrim(left(trx.VCHRNMBR,15))+','+			------campo 9 Numero de Orden de Pago
 			rtrim(left(trx.CUIBenfTransf,11))+','+		------campo 10 cuit del proveedor
-			----rtrim(ISNULL(pr.PBE_Cuit,''))+','+	
+			----rtrim(ISNULL(pr.PBE_Cuit,''))+','+
 			replace(convert(varchar,trx.PAYDATE,103),'/','')+',Y,Y,'+  --- campo 11 fecha de pago campo 12, 13
 			RTRIM(case trx.String1 when 'TRANSFERENCIA' THEN 'T' WHEN 'CHEQUE DIFERIDO' THEN 'D' ELSE 'N' end)+','+	---campo 14 Forma de Pago N Cheque D Cheque Diferido T Transferencia
 			RTRIM(left(PR.PBE_Sucursal,3))+','+	---campo 15 Sucursal
-			replace(RTRIM(left(p.VNDCHKNM,60)),',','')+',,'+	---- campo 16 Nombre del Beneficiario campo 17 
+			replace(RTRIM(left(p.VNDCHKNM,60)),',','')+',,'+	---- campo 16 Nombre del Beneficiario campo 17
 			RTRIM(CASE WHEN TRX.String1='TRANSFERENCIA' THEN left(PR.PBE_CBUAutorizado,22) ELSE '' END)+','+	---- campo 18 CBU del Beneficiario solo T
 			RTRIM(CASE WHEN TRX.String1='TRANSFERENCIA' THEN CASE PR.PBE_TipoCUB WHEN 1 THEN '01' WHEN 2 THEN '02' END ELSE '' END)+',02,'+	--- campo 19 Tipo de Cuenta solo para t campo 20
 			rtrim(case when trx.String1='TRANSFERENCIA' THEN left(p.TXRGNNUM,11) ELSE '' END) +','+		------campo 21 cuit del proveedor SOLO PARA T
@@ -41,7 +41,7 @@ begin
 	left join tblPBE001 pr on pr.VENDORID=trx.VENDORID
 	where trx.SelectedToSave=1
 	---Registro de Facturas
-	insert into tblpbe999 (id,txtfield)		
+	insert into tblpbe999 (id,txtfield)
 	select trx.VCHRNMBR,'DC,I,'+	--- CAMPO 1, CAMPO2
 		isnull(rtrim(right(d.APTODCNM,15)),'')+','+	--- CAMPO 3 NRO. DOCUMENTO
 		isnull(ltrim(d.anio),'')+','+	--- CAMPO 4 AÑO
@@ -60,7 +60,7 @@ begin
 					inner join PM20000 d on d.DOCNUMBR=a.APTODCNM and d.VENDORID=a.VENDORID
 				union
 				select a.VCHRNMBR,APTODCNM,str(year(aptodcdt)),APTODCDT,cast(APPLDAMT as decimal(18,2)),
-					case when APPLDAMT<0 then '-' else '+' end,d.DUEDATE from PM30300 a 
+					case when APPLDAMT<0 then '-' else '+' end,d.DUEDATE from PM30300 a
 					inner join PM30200 d on d.DOCNUMBR=a.APTODCNM and a.VENDORID=d.VENDORID) d on d.VCHRNMBR=t.NUMBERIE
 	left join nfMCP00400 ch on ch.BANACTID=trx.CHEKBKID
 	left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
@@ -73,7 +73,7 @@ begin
 	---SELECT APFRDCNM,APTODCNM FROM PM20100 UNION SELECT APFRDCNM ,APTODCNM FROM PM30300
 	insert into tblpbe999 (id,txtfield)
 	select trx.VCHRNMBR,'RE,I,'+	--- campo 1 campo 2
-		case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when '217' then 'G' when '767' then 'I' when 'IIBB' then 'B' else 'O' end+','+	--- campo 3 
+		case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when '217' then 'G' when '767' then 'I' when 'IIBB' then 'B' else 'O' end+','+	--- campo 3
 		rtrim(left(r.nfMCP_Printing_Number,15))+','+	--- campo 4 numero retencion
 		LEFT(RTRIM(LTRIM(DR.nfRET_Descripcion)),15)+','+ ----left(rtrim(case left(dr.nfRET_Regimen,3) when '217' then 'RETENCION DE GANANCIA' when '767' then 'RETENCION DE IVA' ELSE 'RETENCION DE OTROS' end),15)+','+	--- campo 5 descripcion
 		rtrim(ltrim(CASE SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when 'IIBB' THEN '0000' when 'SUSS' then '0000' ELSE substring(dr.nfRET_Regimen,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 4 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)+1 END,4) END))+','+	--- campo 6 codigo oficial iiibb o SUSS = 0000
@@ -89,12 +89,12 @@ begin
 		case when left(r.nfRET_Retencion_ID,3)='GCI' then isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Importe_Retencion) from nfRET_GL10020 x where x.VENDORID=trx.VENDORID and (month(x.nfRET_Fec_Retencion)=month(trx.DOCDATE) and year(x.nfRET_Fec_Retencion)=year(trx.DOCDATE) and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID and x.DEX_ROW_ID<=r.DEX_ROW_ID)) AS DECIMAL(18,2))),'') end +','+	--- campo 16 Monto acumulado
 		'0.00,,'+(SELECT STUFF((SELECT '/'+RTRIM(D) FROM #TMP WHERE V = TRX.VCHRNMBR and i=r.nfRET_Retencion_ID FOR XML PATH('')),1,1,''))+','	--- campo 17  pago a cuenta campo 18 campo 19 Relacion Retencion Factura
 	from tblPBE002 trx
-	inner join nfRET_GL10020 r on R.APFRDCNM=TRX.VCHRNMBR 
+	inner join nfRET_GL10020 r on R.APFRDCNM=TRX.VCHRNMBR
 	left join (select b.VENDORID,
 					max(b.PRCNTAGE) as porc
-				from nfRET_PM00201 b 
-				where TII_MCP_From_Date=(select max(TII_MCP_From_Date) 
-										from nfRET_PM00201 a 
+				from nfRET_PM00201 b
+				where TII_MCP_From_Date=(select max(TII_MCP_From_Date)
+										from nfRET_PM00201 a
 										where a.VENDORID=b.VENDORID) group by b.VENDORID) p on trx.VENDORID= p.VENDORID
 	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
 	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
@@ -111,5 +111,6 @@ begin
 		rtrim(replace(left(c.TAXREGTN,12),'-',''))+',,'	--- campo 9 Cuit empresa	campo 10
 	from DYNAMICS.dbo.SY01500 c where c.CMPANYID=@compania
 end
-
+go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Pag_Fac_Ret TO DYNGRP
+go

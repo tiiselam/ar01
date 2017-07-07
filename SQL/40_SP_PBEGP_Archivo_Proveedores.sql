@@ -69,8 +69,9 @@ begin
 		',,,,'+---rtrim(d.PBE_CondicionIVA)+',,,,'+	--- campo 12	Condición de IVA,13	Número de Teléfono Proveedor, 14 E-mail proveedor, 15 Nombre del Contacto
 		',,' --- campo 16,campo 17 Nombre del Autorizado
 	from tblPBE301 d
-	left join PM00200 p on p.VENDORID=d.VENDORID 
+	left join PM00200 p on p.VENDORID=d.VENDORID
 	where d.PBE_generado=0
 end
-
+go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Proveedores TO DYNGRP
+go

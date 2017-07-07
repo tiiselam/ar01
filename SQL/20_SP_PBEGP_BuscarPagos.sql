@@ -1,6 +1,6 @@
 create procedure [dbo].[SP_PBEGP_BuscarPagos]
 @Banco as varchar(15),
-@userid as varchar(30) 
+@userid as varchar(30)
 as
 begin
 	delete from tblPBE002 where userid=@userid
@@ -25,6 +25,7 @@ begin
 	left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
 	where t.BANKID=@Banco and AMOUNTO<>0 and t.CHEKBKID<>'' and d.VENDORID is not null and isnull(e.pbe_excluido,0) =0 and t.VOIDED=0 and d.VOIDED=0
 	order by t.DUEDATE
-end 
-
+end
+go
 GRANT EXECUTE ON dbo.SP_PBEGP_BuscarPagos TO DYNGRP
+go
