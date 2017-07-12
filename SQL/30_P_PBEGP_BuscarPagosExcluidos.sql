@@ -19,7 +19,7 @@ begin
 	d.VENDORID ,
 	upper(t.TITACCT),
 	@userid,
-	substring(t.MCPTYPID,6,15),
+	CASE when t.MCPTYPID like 'HSBC%' then substring(t.MCPTYPID,6,15) else 'VAR' end,
 	case when e.[PBE_EstatusBanco]=0 then 9 else e.[PBE_EstatusBanco] end
 	from tblPBE003 ex
 	left join nfMCP_PM20100 t on ex.VCHRNMBR=t.NUMBERIE
