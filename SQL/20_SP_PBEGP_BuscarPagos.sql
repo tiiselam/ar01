@@ -14,7 +14,7 @@ begin
 	d.VENDORID ,
 	upper(t.TITACCT),
 	@userid,
-	substring(t.MCPTYPID,6,15),
+	CASE when t.MCPTYPID like 'HSBC%' then substring(t.MCPTYPID,6,15) else 'VAR' end,
 	isnull(e.[PBE_EstatusBanco],9)
 	from nfMCP_PM20100 t
 	left join nfMCP00700 m on m.MEDIOID=t.MEDIOID
