@@ -73,7 +73,7 @@ begin
 		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','	--- campo 17 Nombre del Autorizado
 	from tblPBE301 d
 	left join PM00200 p on p.VENDORID=d.VENDORID
-	where d.PBE_generado=0
+	where d.PBE_generado=0 and d.PBE_IdAutorizado<>''
 end
 go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Proveedores TO DYNGRP
