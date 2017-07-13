@@ -72,8 +72,9 @@ begin
 		case d.pbe_tipoid when 1 then '50' when 2 then '52' when 3 then '53' when 4 then '54' end+rtrim(left(d.PBE_IdAutorizado,8))+','+	--- campo 16 Tipo y Número de documento del Autorizado
 		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','	--- campo 17 Nombre del Autorizado
 	from tblPBE301 d
-	left join PM00200 p on p.VENDORID=d.VENDORID 
-	where d.PBE_generado=0
+	left join PM00200 p on p.VENDORID=d.VENDORID
+	where d.PBE_generado=0 and d.PBE_IdAutorizado<>''
 end
-
+go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Proveedores TO DYNGRP
+go

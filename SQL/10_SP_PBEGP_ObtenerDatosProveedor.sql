@@ -12,6 +12,7 @@ begin
 	left join nfRFC_SY00101 i on i.NFRFCTXCOD=a.NFRFCTXCOD
 	left join PM00200 gpp on gpp.VENDORID=p.VENDORID
 	where p.VENDORID=@IdProveedor
-end 
-
+end
+go
 GRANT EXECUTE ON dbo.SP_PBEGP_ObtenerDatosProveedor TO DYNGRP
+go
