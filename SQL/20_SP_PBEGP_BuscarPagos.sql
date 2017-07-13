@@ -4,8 +4,9 @@ create procedure [dbo].[SP_PBEGP_BuscarPagos]
 as
 begin
 	delete from tblPBE002 where userid=@userid
-	insert into tblPBE002 (VCHRNMBR,CHEKBKID,PAYDATE,DOCDATE,string1,DOCAMNT,VENDORID,vendname,userid,ConceptoTransf,[PBE_EstatusBanco])
-	select t.NUMBERIE,
+	insert into tblPBE002 (ord_line,VCHRNMBR,CHEKBKID,PAYDATE,DOCDATE,string1,DOCAMNT,VENDORID,vendname,userid,ConceptoTransf,[PBE_EstatusBanco])
+	select ROW_NUMBER() OVER(ORDER BY t.banactid ASC) AS Row#,
+	t.NUMBERIE,
 	t.BANACTID,
 	t.DUEDATE,
 	t.EMIDATE,
