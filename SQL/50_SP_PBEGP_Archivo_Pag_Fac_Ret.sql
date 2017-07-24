@@ -1,5 +1,3 @@
-create USE [TESTP]
-GO
 /****** Object:  StoredProcedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]    Script Date: 7/4/2017 5:21:15 PM ******/
 SET ANSI_NULLS ON
 GO

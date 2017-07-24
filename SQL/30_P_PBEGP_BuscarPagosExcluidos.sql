@@ -1,14 +1,15 @@
-/****** Object:  StoredProcedure [dbo].[SP_PBEGP_BuscarPagosExcluidos]    Script Date: 6/23/2017 12:59:46 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+--24/7/17 jcf comenta el filtro por usuario de la sentencia delete. Causa error de primary key
+--
 create procedure [dbo].[SP_PBEGP_BuscarPagosExcluidos]
 @Banco as varchar(15),
 @userid as varchar(30)
 as
 begin
-	delete from tblPBE002 where userid=@userid
+	delete from tblPBE002 --where userid=@userid
 	insert into tblPBE002 (ord_line,VCHRNMBR,CHEKBKID,PAYDATE,DOCDATE,string1,DOCAMNT,VENDORID,vendname,userid,ConceptoTransf,[PBE_EstatusBanco])
 	select ROW_NUMBER() OVER(ORDER BY t.banactid ASC) AS Row#,
 	t.NUMBERIE,
@@ -34,5 +35,6 @@ begin
 	order by t.DUEDATE
 end
 go
+
 GRANT EXECUTE ON dbo.SP_PBEGP_BuscarPagosExcluidos TO DYNGRP
 go
