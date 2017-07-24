@@ -1,9 +1,12 @@
+
+--24/7/17 jcf comenta el filtro por usuario de la sentencia delete. Causa error de primary key
+--
 create procedure [dbo].[SP_PBEGP_BuscarPagos]
 @Banco as varchar(15),
 @userid as varchar(30)
 as
 begin
-	delete from tblPBE002 where userid=@userid
+	delete from tblPBE002 --where userid=@userid
 	insert into tblPBE002 (ord_line,VCHRNMBR,CHEKBKID,PAYDATE,DOCDATE,string1,DOCAMNT,VENDORID,vendname,userid,ConceptoTransf,[PBE_EstatusBanco])
 	select ROW_NUMBER() OVER(ORDER BY t.banactid ASC) AS Row#,
 	t.NUMBERIE,
