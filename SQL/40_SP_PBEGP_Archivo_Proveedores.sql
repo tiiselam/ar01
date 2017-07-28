@@ -1,9 +1,12 @@
-/****** Object:  StoredProcedure [dbo].[SP_PBEGP_Archivo_Proveedores]    Script Date: 6/22/2017 5:38:27 AM ******/
+
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-create procedure [dbo].[SP_PBEGP_Archivo_Proveedores]
+
+--27/7/17 jcf zipcode es obligatorio. Indicar cuit si no tiene num ingresos brutos.
+
+alter procedure [dbo].[SP_PBEGP_Archivo_Proveedores]
 @compania as bigint,
 @fecha as datetime
 as
@@ -20,18 +23,23 @@ begin
 		rtrim(replace(left(c.TAXREGTN,12),'-',''))+',,'	----- campo 9 Identificación del Cliente, 10 Nombre del archivo
 	from DYNAMICS.dbo.SY01500 c where c.CMPANYID=@compania
 	insert into tblpbe999 (id,txtfield)
-	select p.VENDORID,'SP,I,'+	---- CAMPO 1 Tipo de Registro, CAMPO 2 Indicador de Template. Uso HSBC
-		case PBE_Estatus when 1 then 'U' when 2 then 'D' end+','+	--- CAMPO 3 Tipo de Acción
-		rtrim(substring(p.TXRGNNUM,1,11))+','+	--- CAMPO 4 CUIT Proveedor
-		replace(rtrim(left(p.VENDNAME,40)),',','')+','+	--- CAMPO 5 Razón Social/Nombre Proveedor
+	select p.VENDORID,'SP,I,'+											--- CAMPO 1 Tipo de Registro,	CAMPO 2 Indicador de Template. Uso HSBC
+		case PBE_Estatus when 1 then 'U' when 2 then 'D' end+','+		--- CAMPO 3 Tipo de Acción
+		rtrim(left(p.TXRGNNUM,11))+','+									--- CAMPO 4 CUIT Proveedor
+		replace(rtrim(left(p.VENDNAME,40)),',','')+','+					--- CAMPO 5 Razón Social/Nombre Proveedor
 		replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','')+','+   ---- CAMPO 6 Domicilio Proveedor
-		REPLACE(rtrim(left(p.CITY,20)),',','')+','+   --- CAMPO 7 Localidad Proveedor
-		','+ --- CAMPO 8 Código Postal del Proveedor
-		','+ --- CAMPO 9 Provincia Proveedor
-		rtrim(left(pbe_sucursal,3))+','+ ---- CAMPO 10 Sucursal de Entrega de Cheques
-		rtrim(left(CAST(R.GrossIncomeNumber AS VARCHAR(15)),15))+','+ --- CAMPÓ 11 Número de Ingresos Brutos Proveedor
-		replace(left(rtrim(m.RESPBLE),25),',','')+',,'+   ---- campo 12 Condcion iva, campo 13,
-		replace(rtrim(e.INET1),',',' ')+',,'+ --- CAMPO 14 Email, CAMPO 15
+		REPLACE(rtrim(left(p.CITY,20)),',','')+','+						--- CAMPO 7 Localidad Proveedor
+		left(rtrim(p.zipcode), 4) + ','+								--- CAMPO 8 Código Postal del Proveedor
+		','+															--- CAMPO 9 Provincia Proveedor
+		rtrim(left(pbe_sucursal,3))+','+								--- CAMPO 10 Sucursal de Entrega de Cheques
+		--case when r.GrossIncomeNumber != '' then						--- CAMPO 11 Número de Ingresos Brutos Proveedor
+		--	rtrim(left(CAST(R.GrossIncomeNumber AS VARCHAR(15)),15))
+		--else
+			left(p.TXRGNNUM,11)
+		--end 
+		+','+	
+		replace(left(rtrim(m.RESPBLE),25),',','')+',,'+					--- campo 12 Condcion iva, campo 13,
+		replace(rtrim(e.INET1),',',' ')+',,'+							--- CAMPO 14 Email, CAMPO 15
 		','+	---- CAMPO 16
 		','	--- campo 17
 	from tblPBE001 d
