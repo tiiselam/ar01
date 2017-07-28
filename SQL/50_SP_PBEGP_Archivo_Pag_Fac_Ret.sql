@@ -76,39 +76,23 @@ begin
 	INSERT INTO #TMP (i,V,D)
 	select nfRET_Retencion_ID,APFRDCNM,DOCNUMBR from nfRET_GL10020
 	---SELECT APFRDCNM,APTODCNM FROM PM20100 UNION SELECT APFRDCNM ,APTODCNM FROM PM30300
+
 	insert into tblpbe999 (id,txtfield)
 	select trx.VCHRNMBR,'RE,I,'+							--- campo 1 campo 2
-		CASE nfRET_tipo_id
+		CASE dr.nfRET_tipo_id
 			when 'GCIA' then 'G'
 			when 'IVA' then 'I'
 			when 'IIBB' then 'B'
 			else 'O'
 		end+','+											--- campo 3
-		--case SUBSTRING(dr.nfRET_Regimen,1,
-		--		CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 
-		--		ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 
-		--		END) 
-		--	when '217' then 'G' 
-		--	when '767' then 'I' 
-		--	when 'IIBB' then 'B' 
-		--	else 'O' 
 		rtrim(left(r.nfMCP_Printing_Number,15))+','+		--- campo 4 numero retencion
 		LEFT(RTRIM(LTRIM(DR.nfRET_Descripcion)),15)+','+ 	--- campo 5 descripcion
 		
-		--rtrim(ltrim(
-		--	CASE SUBSTRING(dr.nfRET_Regimen,1,
-		--		CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) 
-		--		when 'IIBB' THEN '0000' 
-		--		when 'SUSS' then '0000' 
-		--		ELSE substring(dr.nfRET_Regimen,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 4 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)+1 END,4) 
-		--	END))
-
-		CASE when nfRET_tipo_id in ('IIBB', 'SUSS') then '0000' 
+		CASE when dr.nfRET_tipo_id in ('IIBB', 'SUSS') then '0000' 
 			else rtrim(substring(dr.nfRET_Regimen, CHARINDEX('-',DR.nfRET_Regimen,1)+1, 4))
 		end+','+											--- campo 6 codigo oficial iiibb o SUSS = 0000
 
-		--ISNULL(RTRIM(SUBSTRING(C.Descripcion,1,CASE WHEN CHARINDEX('-',c.Descripcion,1)=0 THEN 20 ELSE CHARINDEX('-',c.Descripcion,1)-1 END)),'')
-		CASE when nfRET_tipo_id = 'IIBB' then 'Ingresos Brutos' 
+		CASE when dr.nfRET_tipo_id = 'IIBB' then 'Ingresos Brutos' 
 			else rtrim(left(C.Descripcion, 20))
 		end +','+																				--- campo 7 descripcion codigo oficial
 		CONVERT(VARCHAR,CAST(sum(R.nfRET_Base_Calculo) AS DECIMAL(18,2)))+','+					--- campo 8 Base imponible
@@ -116,59 +100,29 @@ begin
 		'$,'+																					--- campo 10
 		RIGHT(CONVERT(VARCHAR,R.nfRET_Fec_Retencion,103),7)+','+								--- campo 11 fecha declaracion jurada
 
-		--case SUBSTRING(dr.nfRET_Regimen,1,
-		--		CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) 
-		--		when 'IIBB' then RTRIM(SUBSTRING(DR.nfRET_Descripcion,1,
-		--						CASE WHEN CHARINDEX('-',dr.nfRET_Descripcion,1)=0 THEN 15 
-		--						ELSE CHARINDEX('-',dr.nfRET_Descripcion,1)-1 END)
-		--						) 
-		--		end 
-		CASE when nfRET_tipo_id = 'IIBB' then
+		CASE when dr.nfRET_tipo_id = 'IIBB' then
 			CASE WHEN CHARINDEX('-',dr.nfRET_Descripcion,1)=0 THEN 'DGR' 
 				else substring(dr.nfRET_Descripcion, 1, CHARINDEX('-',dr.nfRET_Descripcion,1)-1) 
 			end 
 		ELSE ''
 		END +','+																				--- campo 12 Resolución DGR
-		--case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) when 'IIBB' then ltrim(RTRIM(ISNULL(SUBSTRING(C.Descripcion,CASE WHEN CHARINDEX('-',C.Descripcion,1)=0 THEN 3 ELSE CHARINDEX('-',C.Descripcion,1)+1 END,20),''))) end
-		CASE when nfRET_tipo_id = 'IIBB' then rtrim(left(C.Descripcion, 20)) ELSE '' END +','+	--- campo 13 Provincia
+		CASE when dr.nfRET_tipo_id = 'IIBB' then rtrim(left(C.Descripcion, 20)) ELSE '' END +','+	--- campo 13 Provincia
 
-		--case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) 
-		--	when 'IIBB' then ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
-		--												else p.porc 
-		--												end AS DECIMAL(18,2))),'') 
-		--end
-		
-		CASE when nfRET_tipo_id = 'IIBB' then 
+		CASE when dr.nfRET_tipo_id = 'IIBB' then 
 			ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
 														else p.porc 
 														end AS DECIMAL(18,2))),'') 
 		 ELSE '' 
 		 END +','+																				--- campo 14 Porcentaje
 
-		--case SUBSTRING(dr.nfRET_Regimen,1,CASE WHEN CHARINDEX('-',DR.nfRET_Regimen,1)=0 THEN 3 ELSE CHARINDEX('-',DR.nfRET_Regimen,1)-1 END) 
-		--	when 'IIBB' then 
-		--		ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
-		--												else p.porc 
-		--												end AS DECIMAL(18,2))),'') 
-		--end
-		
-		CASE when nfRET_tipo_id = 'IIBB' then 
+		CASE when dr.nfRET_tipo_id = 'IIBB' then 
 			ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
 														else p.porc 
 														end AS DECIMAL(18,2))),'') 
 			ELSE '' 
 		END +','+																				--- campo 15 alicuota
-		--case when left(r.nfRET_Retencion_ID,3)='GCI' then 
-		--	isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Importe_Retencion) 
-		--								from nfRET_GL10020 x 
-		--								where x.VENDORID=trx.VENDORID 
-		--								and (month(x.nfRET_Fec_Retencion)=month(trx.DOCDATE) 
-		--								and year(x.nfRET_Fec_Retencion)=year(trx.DOCDATE) 
-		--								and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID 
-		--								and x.DEX_ROW_ID<=r.DEX_ROW_ID)) AS DECIMAL(18,2))),'') 
-		--								end 
 		
-		CASE when nfRET_tipo_id = 'GCIA' then 
+		CASE when dr.nfRET_tipo_id = 'GCIA' then 
 					isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Importe_Retencion) 
 										from nfRET_GL10020 x 
 										where x.VENDORID=trx.VENDORID 
@@ -186,11 +140,14 @@ begin
 				from nfRET_PM00201 b
 				where TII_MCP_From_Date=(select max(TII_MCP_From_Date)
 										from nfRET_PM00201 a
-										where a.VENDORID=b.VENDORID) group by b.VENDORID) p on trx.VENDORID= p.VENDORID
+										where a.VENDORID=b.VENDORID) 
+				group by b.VENDORID) p 
+			on trx.VENDORID= p.VENDORID
 	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
 	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
 	where trx.SelectedToSave=1
-	group by r.nfRET_Retencion_ID,trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
+	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
+
 	DROP TABLE #TMP
 	---Cabecera
 	insert into tblpbe999 (id,txtfield)
