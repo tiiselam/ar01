@@ -3,6 +3,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 --27/7/17 JCF Modifica campos de pagos: 6, 10, 15. De retenciones: 3,6,12,13,14,15. Ref. 170727 proe ALTA PAP HSBC - PROENERGY SRL.ajustes a archivos by a svar.htm
+--10/08/17 jcf Corrige aplicación de facturas en registros DC y RE
 --
 alter procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
@@ -45,36 +46,40 @@ begin
 	left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
 	left join tblPBE001 pr on pr.VENDORID=trx.VENDORID
 	where trx.SelectedToSave=1
+
 	---Registro de Facturas
 	insert into tblpbe999 (id,txtfield)
-	select trx.VCHRNMBR,'DC,I,'+	--- CAMPO 1, CAMPO2
-		isnull(rtrim(right(d.APTODCNM,15)),'')+','+	--- CAMPO 3 NRO. DOCUMENTO
-		isnull(ltrim(d.anio),'')+','+	--- CAMPO 4 AÑO
+	select trx.VCHRNMBR,'DC,I,'+											--- CAMPO 1, CAMPO 2
+		isnull(ltrim(right(rtrim(d.APTODCNM),15)),'')+','+					--- CAMPO 3 NRO. DOCUMENTO
+		isnull(ltrim(d.anio),'')+','+										--- CAMPO 4 AÑO
 		isnull(replace(convert(varchar,d.duedate,103),'/',''),'')+','+		--- campo 5 fecha vencimiento
-		isnull(replace(convert(varchar,d.APTODCDT,103),'/',''),'')+','+	--- campo 6 fecha documento
-		isnull(RTRIM(left(d.APTODCNM,2)),'')+','+	---- campo 7 Tipo Documento
-		isnull(convert(varchar,d.appldamt),'')+','+	--- campo 8 importe
-		+','+	--- campo 9 signo
-		'$,'	---- campo 10 $
+		isnull(replace(convert(varchar,d.APTODCDT,103),'/',''),'')+','+		--- campo 6 fecha documento
+		isnull(RTRIM(left(d.APTODCNM,2)),'')+','+							--- campo 7 Tipo Documento
+		isnull(convert(varchar,d.appldamt),'')+','+							--- campo 8 importe
+		+','+																--- campo 9 signo
+		'$,'																--- campo 10 $
 	from tblPBE002 trx
 	left join nfMCP_PM20100 t on trx.VCHRNMBR=t.NUMBERIE
 	left join nfMCP00700 m on m.MEDIOID=t.MEDIOID
 	left join nfMCP00200 g on g.GRUPID=m.GRUPID
-	inner join (select a.VCHRNMBR,APTODCNM,str(year(aptodcdt)) as anio,APTODCDT,cast(APPLDAMT as decimal(18,2)) as appldamt,
-					case when APPLDAMT<0 then '-' else '+' end as signo,d.DUEDATE as duedate from PM20100 a
-					inner join PM20000 d on d.DOCNUMBR=a.APTODCNM and d.VENDORID=a.VENDORID
-				union
-				select a.VCHRNMBR,APTODCNM,str(year(aptodcdt)),APTODCDT,cast(APPLDAMT as decimal(18,2)),
-					case when APPLDAMT<0 then '-' else '+' end,d.DUEDATE from PM30300 a
-					inner join PM30200 d on d.DOCNUMBR=a.APTODCNM and a.VENDORID=d.VENDORID) d on d.VCHRNMBR=t.NUMBERIE
+	inner join (
+				select a.VCHRNMBR, a.DOCTYPE, a.APTVCHNM, a.APTODCTY, 
+					a.APTODCNM, str(year(aptodcdt)) as anio, a.APTODCDT, cast(a.APPLDAMT as decimal(18,2)) as appldamt,
+					case when a.APPLDAMT<0 then '-' else '+' end as signo,
+					a.duedate 
+				from dbo.tii_vwPmAplicadosExtendido a
+				) d 
+			on d.VCHRNMBR = t.NUMBERIE
+			and d.doctype = 6
 	left join nfMCP00400 ch on ch.BANACTID=trx.CHEKBKID
 	left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
 	left join tblPBE001 pr on pr.VENDORID=trx.VENDORID
 	where trx.SelectedToSave=1
+
 	---Registro de Retenciones
-	CREATE TABLE #TMP (i varchar(50),V VARCHAR(50),D VARCHAR(50))
-	INSERT INTO #TMP (i,V,D)
-	select nfRET_Retencion_ID,APFRDCNM,DOCNUMBR from nfRET_GL10020
+	--CREATE TABLE #TMP (i varchar(50),V VARCHAR(50),D VARCHAR(50))
+	--INSERT INTO #TMP (i,V,D)
+	--select nfRET_Retencion_ID,APFRDCNM,DOCNUMBR from nfRET_GL10020
 	---SELECT APFRDCNM,APTODCNM FROM PM20100 UNION SELECT APFRDCNM ,APTODCNM FROM PM30300
 
 	insert into tblpbe999 (id,txtfield)
@@ -132,7 +137,16 @@ begin
 										and x.DEX_ROW_ID<=r.DEX_ROW_ID)) AS DECIMAL(18,2))),'') 
 		else ''
 		end		+','+																			--- campo 16 Monto acumulado
-		'0.00,,'+(SELECT STUFF((SELECT '/'+RTRIM(D) FROM #TMP WHERE V = TRX.VCHRNMBR and i=r.nfRET_Retencion_ID FOR XML PATH('')),1,1,''))+','	--- campo 17  pago a cuenta campo 18 campo 19 Relacion Retencion Factura
+		'0.00,,'+																				--- campo 17  pago a cuenta campo 18 
+		(
+		SELECT STUFF(
+			(SELECT '/'+ltrim(right(rtrim(APTODCNM),15))
+			FROM dbo.tii_vwPmAplicadas 
+			WHERE vchrnmbr = 'O/P00000004          '	--TRX.VCHRNMBR 
+			and doctype = 6
+			FOR XML PATH(''))
+			,1,1,'')
+		)+','																					--- campo 19 Relacion Retencion Factura
 	from tblPBE002 trx
 	inner join nfRET_GL10020 r on R.APFRDCNM=TRX.VCHRNMBR
 	left join (select b.VENDORID,
@@ -148,7 +162,7 @@ begin
 	where trx.SelectedToSave=1
 	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
 
-	DROP TABLE #TMP
+	--DROP TABLE #TMP
 	---Cabecera
 	insert into tblpbe999 (id,txtfield)
 	select '0','FH,'+		---campo 1
