@@ -2,8 +2,9 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
---27/7/17 JCF Modifica campos de pagos: 6, 10, 15. De retenciones: 3,6,12,13,14,15. Ref. 170727 proe ALTA PAP HSBC - PROENERGY SRL.ajustes a archivos by a svar.htm
+--27/07/17 JCF Modifica campos de pagos: 6, 10, 15. De retenciones: 3,6,12,13,14,15. Ref. 170727 proe ALTA PAP HSBC - PROENERGY SRL.ajustes a archivos by a svar.htm
 --10/08/17 jcf Corrige aplicación de facturas en registros DC y RE
+--14/08/17 jcf Corrige porcentajes y monto acumulado de retención. Registro RE
 --
 alter procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
@@ -51,29 +52,23 @@ begin
 	insert into tblpbe999 (id,txtfield)
 	select trx.VCHRNMBR,'DC,I,'+											--- CAMPO 1, CAMPO 2
 		isnull(ltrim(right(rtrim(d.APTODCNM),15)),'')+','+					--- CAMPO 3 NRO. DOCUMENTO
-		isnull(ltrim(d.anio),'')+','+										--- CAMPO 4 AÑO
+		isnull(convert(varchar(4), year(d.aptodcdt)),'')+','+								--- CAMPO 4 AÑO
 		isnull(replace(convert(varchar,d.duedate,103),'/',''),'')+','+		--- campo 5 fecha vencimiento
 		isnull(replace(convert(varchar,d.APTODCDT,103),'/',''),'')+','+		--- campo 6 fecha documento
 		isnull(RTRIM(left(d.APTODCNM,2)),'')+','+							--- campo 7 Tipo Documento
-		isnull(convert(varchar,d.appldamt),'')+','+							--- campo 8 importe
+		isnull(convert(varchar,cast(d.APPLDAMT as decimal(18,2))),'')+','+	--- campo 8 importe
 		+','+																--- campo 9 signo
 		'$,'																--- campo 10 $
 	from tblPBE002 trx
 	left join nfMCP_PM20100 t on trx.VCHRNMBR=t.NUMBERIE
 	left join nfMCP00700 m on m.MEDIOID=t.MEDIOID
 	left join nfMCP00200 g on g.GRUPID=m.GRUPID
-	inner join (
-				select a.VCHRNMBR, a.DOCTYPE, a.APTVCHNM, a.APTODCTY, 
-					a.APTODCNM, str(year(aptodcdt)) as anio, a.APTODCDT, cast(a.APPLDAMT as decimal(18,2)) as appldamt,
-					case when a.APPLDAMT<0 then '-' else '+' end as signo,
-					a.duedate 
-				from dbo.tii_vwPmAplicadosExtendido a
-				) d 
+	inner join dbo.tii_vwPmAplicadosExtendido d
 			on d.VCHRNMBR = t.NUMBERIE
 			and d.doctype = 6
 	left join nfMCP00400 ch on ch.BANACTID=trx.CHEKBKID
-	left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
-	left join tblPBE001 pr on pr.VENDORID=trx.VENDORID
+	--left join tblPBE003 e on t.NUMBERIE=e.vchrnmbr
+	--left join tblPBE001 pr on pr.VENDORID=trx.VENDORID
 	where trx.SelectedToSave=1
 
 	---Registro de Retenciones
@@ -128,36 +123,45 @@ begin
 		END +','+																				--- campo 15 alicuota
 		
 		CASE when dr.nfRET_tipo_id = 'GCIA' then 
-					isnull(CONVERT(VARCHAR,CAST((select sum(x.nfRET_Importe_Retencion) 
-										from nfRET_GL10020 x 
-										where x.VENDORID=trx.VENDORID 
-										and (month(x.nfRET_Fec_Retencion)=month(trx.DOCDATE) 
-										and year(x.nfRET_Fec_Retencion)=year(trx.DOCDATE) 
-										and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID 
-										and x.DEX_ROW_ID<=r.DEX_ROW_ID)) AS DECIMAL(18,2))),'') 
+					isnull(CONVERT(VARCHAR,CAST(
+										(sum(r.nfRET_importe_retencion  + r.nfRET_Monto_Retenciones))
+										--(select sum(x.nfRET_Importe_Retencion) 
+										--from nfRET_GL10020 x 
+										--where x.VENDORID=trx.VENDORID 
+										--and month(x.nfRET_Fec_Retencion)=month(trx.DOCDATE) 
+										--and year(x.nfRET_Fec_Retencion)=year(trx.DOCDATE) 
+										--and x.nfRET_Retencion_ID=r.nfRET_Retencion_ID 
+										--and x.DEX_ROW_ID<=r.DEX_ROW_ID) 
+										AS DECIMAL(18,2))
+									)
+						,'') 
 		else ''
-		end		+','+																			--- campo 16 Monto acumulado
-		'0.00,,'+																				--- campo 17  pago a cuenta campo 18 
+		end	+','+																				--- campo 16 Monto acumulado
+		','+																					--- campo 17 pago a cuenta 
+		','+																					--- campo 18 
 		(
 		SELECT STUFF(
 			(SELECT '/'+ltrim(right(rtrim(APTODCNM),15))
 			FROM dbo.tii_vwPmAplicadas 
-			WHERE vchrnmbr = 'O/P00000004          '	--TRX.VCHRNMBR 
+			WHERE vchrnmbr = TRX.VCHRNMBR 
 			and doctype = 6
 			FOR XML PATH(''))
 			,1,1,'')
 		)+','																					--- campo 19 Relacion Retencion Factura
 	from tblPBE002 trx
-	inner join nfRET_GL10020 r on R.APFRDCNM=TRX.VCHRNMBR
-	left join (select b.VENDORID,
-					max(b.PRCNTAGE) as porc
+	inner join nfRET_GL10020 r 
+		on R.APFRDCNM = TRX.VCHRNMBR
+		AND R.VENDORID = trx.VENDORID
+	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
+	outer apply (select max(b.PRCNTAGE) as porc
 				from nfRET_PM00201 b
 				where TII_MCP_From_Date=(select max(TII_MCP_From_Date)
 										from nfRET_PM00201 a
-										where a.VENDORID=b.VENDORID) 
-				group by b.VENDORID) p 
-			on trx.VENDORID= p.VENDORID
-	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
+										where a.VENDORID = b.VENDORID
+										and a.nfRET_Tipo_ID = b.nfRET_Tipo_ID) 
+				and nfRET_Tipo_ID = dr.nfRET_tipo_id
+				and vendorid = trx.VENDORID
+				) p
 	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
 	where trx.SelectedToSave=1
 	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
@@ -176,3 +180,4 @@ end
 go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Pag_Fac_Ret TO DYNGRP
 go
+
