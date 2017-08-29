@@ -5,6 +5,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 --27/7/17 jcf zipcode es obligatorio. Indicar cuit si no tiene num ingresos brutos.
+--29/8/17 jcf quita caracteres especiales de dirección
 
 alter procedure [dbo].[SP_PBEGP_Archivo_Proveedores]
 @compania as bigint,
@@ -13,8 +14,8 @@ as
 begin
 	delete from tblpbe999
 	insert into tblpbe999 (id,txtfield)
-	select '0','FH,'+	---- campo 1 Tipo de Registro
-		replace(convert(varchar(19),@fecha,103),'/','')+','+	--- campo 2 fecha archivo
+	select '0','FH,'+													---- campo 1 Tipo de Registro
+		replace(convert(varchar(19),@fecha,103),'/','')+','+			--- campo 2 fecha archivo
 		'PCBE,'+	----- campo 3 Objeto. De uso para HSBC
 		ltrim(str((select count(*) from tblPBE001 where PBE_generado=0)+
 		(select count(*) from tblPBE001 where PBE_generado=0 and PBE_IdAutorizado<>'')+
@@ -27,7 +28,7 @@ begin
 		case PBE_Estatus when 1 then 'U' when 2 then 'D' end+','+		--- CAMPO 3 Tipo de Acción
 		rtrim(left(p.TXRGNNUM,11))+','+									--- CAMPO 4 CUIT Proveedor
 		replace(rtrim(left(p.VENDNAME,40)),',','')+','+					--- CAMPO 5 Razón Social/Nombre Proveedor
-		replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','')+','+   ---- CAMPO 6 Domicilio Proveedor
+		replace(replace(replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',',''), 'º', '' ), '"', '')+','+   ---- CAMPO 6 Domicilio Proveedor
 		REPLACE(rtrim(left(p.CITY,20)),',','')+','+						--- CAMPO 7 Localidad Proveedor
 		left(rtrim(p.zipcode), 4) + ','+								--- CAMPO 8 Código Postal del Proveedor
 		','+															--- CAMPO 9 Provincia Proveedor
@@ -50,35 +51,35 @@ begin
 	 where d.PBE_generado=0
 	insert into tblpbe999 (id,txtfield)
 	select p.VENDORID,'SP,I,'+	--- campo 1	Tipo de Registro, campo 2	Indicador de Template. Uso HSBC
-		case PBE_Estatus when 1 then 'U,' when 2 then 'D,' end+ ----campo 3	Tipo de Acción
-		rtrim(substring(p.TXRGNNUM,1,11))+','+	--- campo 4	CUIT Proveedor
-		replace(rtrim(left(p.VENDNAME,40)),',','')+','+	---- campo 5	Razón Social/Nombre Proveedor
-		replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','')+','+	---campo 6	Domicilio Proveedor
-		replace(rtrim(left(p.CITY,20)),',','')+','+	--- campo 7	Localidad Proveedor
+		case PBE_Estatus when 1 then 'U,' when 2 then 'D,' end+			----campo 3	Tipo de Acción
+		rtrim(substring(p.TXRGNNUM,1,11))+','+							--- campo 4	CUIT Proveedor
+		replace(rtrim(left(p.VENDNAME,40)),',','')+','+					---- campo 5	Razón Social/Nombre Proveedor
+		replace(replace(replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','') , 'º', '' ), '"', '')+','+	---campo 6	Domicilio Proveedor
+		replace(rtrim(left(p.CITY,20)),',','')+','+						--- campo 7	Localidad Proveedor
 		','+	---- campo 8	Código Postal del Proveedor
 		','+	--- campo 9		Provincia Proveedor
-		rtrim(left(pbe_sucursal,3))+','+	--- campo 10	Sucursal de Entrega de Cheques
+		rtrim(left(pbe_sucursal,3))+','+								--- campo 10	Sucursal de Entrega de Cheques
 		','+	--- campo 11	Número de Ingresos Brutos Proveedor
-		replace(rtrim(left(d.PBE_CondicionIVA,25)),',','')+',,,,'+	--- campo 12	Condición de IVA,13	Número de Teléfono Proveedor, 14 E-mail proveedor, 15 Nombre del Contacto
+		replace(rtrim(left(d.PBE_CondicionIVA,25)),',','')+',,,,'+		--- campo 12	Condición de IVA,13	Número de Teléfono Proveedor, 14 E-mail proveedor, 15 Nombre del Contacto
 		case d.pbe_tipoid when 1 then '50' when 2 then '52' when 3 then '53' when 4 then '54' end+rtrim(left(d.PBE_IdAutorizado,8))+','+	--- campo 16 Tipo y Número de documento del Autorizado
-		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','	--- campo 17 Nombre del Autorizado
+		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','		--- campo 17 Nombre del Autorizado
 	from tblPBE001 d
 	left join PM00200 p on p.VENDORID=d.VENDORID
 	where d.PBE_generado=0 and d.PBE_IdAutorizado<>''
 	union
 	select p.VENDORID,'SP,I,'+	--- campo 1	Tipo de Registro, campo 2	Indicador de Template. Uso HSBC
-		case PBE_Estatus when 1 then 'U,' when 2 then 'D,' end+ ----campo 3	Tipo de Acción
-		rtrim(substring(p.TXRGNNUM,1,11))+','+	--- campo 4	CUIT Proveedor
-		replace(rtrim(left(p.VENDNAME,40)),',','')+','+	---- campo 5	Razón Social/Nombre Proveedor
-		replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','')+','+	---campo 6	Domicilio Proveedor
-		replace(rtrim(left(p.CITY,20)),',','')+','+	--- campo 7	Localidad Proveedor
+		case PBE_Estatus when 1 then 'U,' when 2 then 'D,' end+			----campo 3	Tipo de Acción
+		rtrim(substring(p.TXRGNNUM,1,11))+','+							--- campo 4	CUIT Proveedor
+		replace(rtrim(left(p.VENDNAME,40)),',','')+','+					---- campo 5	Razón Social/Nombre Proveedor
+		replace(replace(replace(rtrim(left(p.ADDRESS1+' '+p.ADDRESS2+' '+p.ADDRESS3,40)),',','') , 'º', '' ), '"', '')+','+	---campo 6	Domicilio Proveedor
+		replace(rtrim(left(p.CITY,20)),',','')+','+						--- campo 7	Localidad Proveedor
 		','+	---- campo 8	Código Postal del Proveedor
 		','+	--- campo 9		Provincia Proveedor
-		rtrim(left(pbe_sucursal,3))+','+	--- campo 10	Sucursal de Entrega de Cheques
+		rtrim(left(pbe_sucursal,3))+','+								--- campo 10	Sucursal de Entrega de Cheques
 		','+	--- campo 11	Número de Ingresos Brutos Proveedor
-		replace(rtrim(left(d.PBE_CondicionIVA,25)),',','')+',,,,'+	--- campo 12	Condición de IVA,13	Número de Teléfono Proveedor, 14 E-mail proveedor, 15 Nombre del Contacto
+		replace(rtrim(left(d.PBE_CondicionIVA,25)),',','')+',,,,'+		--- campo 12	Condición de IVA,13	Número de Teléfono Proveedor, 14 E-mail proveedor, 15 Nombre del Contacto
 		case d.pbe_tipoid when 1 then '50' when 2 then '52' when 3 then '53' when 4 then '54' end+rtrim(left(d.PBE_IdAutorizado,8))+','+	--- campo 16 Tipo y Número de documento del Autorizado
-		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','	--- campo 17 Nombre del Autorizado
+		replace(rtrim(left(d.PBE_NombreAutorizado,40)),',','')+','		--- campo 17 Nombre del Autorizado
 	from tblPBE301 d
 	left join PM00200 p on p.VENDORID=d.VENDORID
 	where d.PBE_generado=0 and d.PBE_IdAutorizado<>''
