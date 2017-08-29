@@ -1,7 +1,5 @@
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+--Propósito. Crea los resgistros para el archivo de pagos
+--may/17 ltoro
 --27/07/17 JCF Modifica campos de pagos: 6, 10, 15. De retenciones: 3,6,12,13,14,15. Ref. 170727 proe ALTA PAP HSBC - PROENERGY SRL.ajustes a archivos by a svar.htm
 --10/08/17 jcf Corrige aplicación de facturas en registros DC y RE
 --14/08/17 jcf Corrige porcentajes y monto acumulado de retención. Registro RE
@@ -93,7 +91,7 @@ begin
 		end+','+											--- campo 6 codigo oficial iiibb o SUSS = 0000
 
 		CASE when dr.nfRET_tipo_id = 'IIBB' then 'Ingresos Brutos' 
-			else rtrim(left(C.Descripcion, 20))
+			else rtrim(left(replace(C.Descripcion, ',', ''), 20))
 		end +','+																				--- campo 7 descripcion codigo oficial
 		CONVERT(VARCHAR,CAST(sum(R.nfRET_Base_Calculo) AS DECIMAL(18,2)))+','+					--- campo 8 Base imponible
 		CONVERT(VARCHAR,CAST(sum(R.nfRET_Importe_Retencion) AS DECIMAL(18,2)))+','+				--- campo 9 Monto Retencion
@@ -137,7 +135,20 @@ begin
 						,'') 
 		else ''
 		end	+','+																				--- campo 16 Monto acumulado
-		','+																					--- campo 17 pago a cuenta 
+		CASE when dr.nfRET_tipo_id = 'SUSS' then 
+					isnull(CONVERT(VARCHAR,CAST(
+										(select sum(nfRET_Monto_Retenciones)
+										from nfRET_GL10010
+										where VENDORID = trx.VENDORID
+										and nfRET_Retencion_ID = r.nfRET_Retencion_ID
+										and nfRET_Periodo_Year = year(trx.DOCDATE)
+										and nfRET_Period_Month = month(trx.DOCDATE)
+										)
+										AS DECIMAL(18,2))
+									)
+						,'') 
+		else ''
+		end	+','+																				--- campo 17 pago a cuenta 
 		','+																					--- campo 18 
 		(
 		SELECT STUFF(
