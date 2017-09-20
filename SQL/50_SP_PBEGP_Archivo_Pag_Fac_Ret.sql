@@ -3,6 +3,7 @@
 --27/07/17 JCF Modifica campos de pagos: 6, 10, 15. De retenciones: 3,6,12,13,14,15. Ref. 170727 proe ALTA PAP HSBC - PROENERGY SRL.ajustes a archivos by a svar.htm
 --10/08/17 jcf Corrige aplicación de facturas en registros DC y RE
 --14/08/17 jcf Corrige porcentajes y monto acumulado de retención. Registro RE
+--20/09/17 jcf No debe generar retenciones con monto cero sin número de certificado
 --
 alter procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
@@ -175,6 +176,7 @@ begin
 				) p
 	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
 	where trx.SelectedToSave=1
+	and r.nfRET_Importe_Retencion <> 0
 	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
 
 	--DROP TABLE #TMP
