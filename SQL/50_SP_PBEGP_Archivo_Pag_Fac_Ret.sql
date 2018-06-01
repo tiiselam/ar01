@@ -5,6 +5,7 @@
 --14/08/17 jcf Corrige porcentajes y monto acumulado de retención. Registro RE
 --20/09/17 jcf No debe generar retenciones con monto cero sin número de certificado
 --13/10/17 jcf Fecha de emisión y pago debe ser el parámetro @fecha. El hsbc rebota el archivo cuando la fecha del pago es de ayer o anterior.
+--20/12/17 jcf Ajustes varios campo 15 del ID
 --
 alter procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
@@ -29,7 +30,7 @@ begin
 			replace(convert(varchar(19), @fecha, 103),'/','') +													-- campo 11 fecha de pago 
 			',Y,Y,'	+																							-- campo 12, 13
 			RTRIM(case trx.String1 when 'TRANSFERENCIA' THEN 'T' WHEN 'CHEQUE DIFERIDO' THEN 'D' ELSE 'N' end)+','+	---campo 14 Forma de Pago N Cheque D Cheque Diferido T Transferencia
-			case when trx.String1 = 'TRANSFERENCIA' and PR.PBE_Sucursal = '' then
+			case when trx.String1 = 'TRANSFERENCIA' and rtrim(PR.PBE_Sucursal) = '' then
 				'140'
 			else RTRIM(left(PR.PBE_Sucursal,3))
 			end +','+																							--- campo 15 Sucursal
