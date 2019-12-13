@@ -1,14 +1,19 @@
+IF EXISTS (
+  SELECT * 
+    FROM INFORMATION_SCHEMA.ROUTINES 
+   WHERE SPECIFIC_SCHEMA = 'dbo'
+     AND SPECIFIC_NAME = 'SP_PBEGP_Archivo_Proveedores' 
+)
+   DROP PROCEDURE dcem.dcemCorrigePoliza;
+GO
 
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 
 --27/07/17 jcf zipcode es obligatorio. Indicar cuit si no tiene num ingresos brutos.
 --29/08/17 jcf quita caracteres especiales de dirección
 --14/09/17 jcf comenta proveedores de tblPBE301
 --18/09/17 jcf Agrega filtro PBE_Estatus>0
 --05/12/19 jcf Corrige bug. Obtiene datos si el proveedor existe en tblPBE001 y pm00200
+--12/12/19 jcf Corrige el conteo de proveedores y autorizados
 
 alter procedure [dbo].[SP_PBEGP_Archivo_Proveedores]
 @compania as bigint,
@@ -16,6 +21,22 @@ alter procedure [dbo].[SP_PBEGP_Archivo_Proveedores]
 as
 begin
 	delete from tblpbe999;
+	declare @iProveedores INT, @iAutorizados INT;
+
+ 	select  @iProveedores = count(*) 
+	from tblPBE001 d
+	inner join PM00200 p 
+			on p.VENDORID=d.VENDORID
+	where d.PBE_generado=0 
+	and d.PBE_Estatus>0;
+	
+	select @iAutorizados = count(*) 
+	from tblPBE001 d
+	inner join PM00200 p 
+		on p.VENDORID=d.VENDORID
+	where d.PBE_generado=0 
+	and d.PBE_Estatus>0
+	and d.PBE_IdAutorizado<>'';
 
 	--Cabecera
 	insert into tblpbe999 (id,txtfield)
@@ -23,7 +44,7 @@ begin
 		replace(convert(varchar(19),@fecha,103),'/','')+','+			--- campo 2 fecha archivo
 		'PCBE,'+														--- campo 3 Objeto. De uso para HSBC
 		ltrim(str(
-			1+(select count(*) from tblPBE001 where PBE_generado=0 and PBE_Estatus>0)
+			1+( isnull(@iProveedores, 0) + isnull(@iAutorizados, 0))
 			))+','+														--- campo 4 Cantidad de Registros del archivo
 		'A,C,AR,HBAR,'+													--- campo 5 Tipo de Autorización, 6 Tipo de Archivo,7 País Cliente. De uso en HSBC, 8 Banco del Cliente. De uso en HSBC
 		rtrim(replace(left(c.TAXREGTN,12),'-',''))+',,'					--- campo 9 Identificación del Cliente, 10 Nombre del archivo
@@ -82,5 +103,10 @@ begin
 
 end
 go
+
+IF (@@Error = 0) PRINT 'Creación exitosa de: SP_PBEGP_Archivo_Proveedores'
+ELSE PRINT 'Error en la creación de: SP_PBEGP_Archivo_Proveedores'
+GO
+
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Proveedores TO DYNGRP
 go
