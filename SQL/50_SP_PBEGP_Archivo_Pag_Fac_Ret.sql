@@ -101,7 +101,7 @@ begin
 		end+','+											--- campo 6 codigo oficial de la retención iiibb o SUSS = 0000
 
 		CASE when dr.nfRET_tipo_id like 'IIBB%' --'Ingresos Brutos' 
-			then rtrim(tipoRet.nfRET_Descripcion)
+			then left(rtrim(tipoRet.nfRET_Descripcion), 20)
 			else rtrim(left(replace(C.Descripcion, ',', ''), 20))
 		end +','+																				--- campo 7 descripcion codigo oficial
 		CONVERT(VARCHAR,CAST(sum(R.nfRET_Base_Calculo) AS DECIMAL(18,2)))+','+					--- campo 8 Base imponible
