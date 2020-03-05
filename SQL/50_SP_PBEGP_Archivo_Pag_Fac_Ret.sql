@@ -6,8 +6,18 @@
 --20/09/17 jcf No debe generar retenciones con monto cero sin número de certificado
 --13/10/17 jcf Fecha de emisión y pago debe ser el parámetro @fecha. El hsbc rebota el archivo cuando la fecha del pago es de ayer o anterior.
 --20/12/17 jcf Ajustes varios campo 15 del ID
+--04/03/20 jcf Agrega caso de retenciones de Tucumán
 --
-alter procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
+IF EXISTS (
+  SELECT * 
+    FROM INFORMATION_SCHEMA.ROUTINES 
+   WHERE SPECIFIC_SCHEMA = 'dbo'
+     AND SPECIFIC_NAME = 'SP_PBEGP_Archivo_Pag_Fac_Ret' 
+)
+   DROP PROCEDURE dbo.SP_PBEGP_Archivo_Pag_Fac_Ret;
+GO
+
+create procedure [dbo].[SP_PBEGP_Archivo_Pag_Fac_Ret]
 @compania as bigint,
 @fecha as datetime
 as
@@ -76,27 +86,22 @@ begin
 	where trx.SelectedToSave=1
 
 	---Registro de Retenciones
-	--CREATE TABLE #TMP (i varchar(50),V VARCHAR(50),D VARCHAR(50))
-	--INSERT INTO #TMP (i,V,D)
-	--select nfRET_Retencion_ID,APFRDCNM,DOCNUMBR from nfRET_GL10020
-	---SELECT APFRDCNM,APTODCNM FROM PM20100 UNION SELECT APFRDCNM ,APTODCNM FROM PM30300
-
 	insert into tblpbe999 (id,txtfield)
 	select trx.VCHRNMBR,'RE,I,'+							--- campo 1 campo 2
-		CASE dr.nfRET_tipo_id
-			when 'GCIA' then 'G'
-			when 'IVA' then 'I'
-			when 'IIBB' then 'B'
+		CASE when dr.nfRET_tipo_id like 'GCIA%' then 'G'
+			when dr.nfRET_tipo_id like 'IVA%' then 'I'
+			when dr.nfRET_tipo_id like 'IIBB%' then 'B'
 			else 'O'
-		end+','+											--- campo 3
+		end+','+											--- campo 3 Tipo de Retención
 		rtrim(left(r.nfMCP_Printing_Number,15))+','+		--- campo 4 numero retencion
 		LEFT(RTRIM(LTRIM(DR.nfRET_Descripcion)),15)+','+ 	--- campo 5 descripcion
 		
-		CASE when dr.nfRET_tipo_id in ('IIBB', 'SUSS') then '0000' 
+		CASE when dr.nfRET_tipo_id like 'IIBB%' or dr.nfRET_tipo_id like 'SUSS%' then '0000' 
 			else rtrim(substring(dr.nfRET_Regimen, CHARINDEX('-',DR.nfRET_Regimen,1)+1, 4))
-		end+','+											--- campo 6 codigo oficial iiibb o SUSS = 0000
+		end+','+											--- campo 6 codigo oficial de la retención iiibb o SUSS = 0000
 
-		CASE when dr.nfRET_tipo_id = 'IIBB' then 'Ingresos Brutos' 
+		CASE when dr.nfRET_tipo_id like 'IIBB%' --'Ingresos Brutos' 
+			then left(rtrim(tipoRet.nfRET_Descripcion), 20)
 			else rtrim(left(replace(C.Descripcion, ',', ''), 20))
 		end +','+																				--- campo 7 descripcion codigo oficial
 		CONVERT(VARCHAR,CAST(sum(R.nfRET_Base_Calculo) AS DECIMAL(18,2)))+','+					--- campo 8 Base imponible
@@ -104,22 +109,22 @@ begin
 		'$,'+																					--- campo 10
 		RIGHT(CONVERT(VARCHAR,R.nfRET_Fec_Retencion,103),7)+','+								--- campo 11 fecha declaracion jurada
 
-		CASE when dr.nfRET_tipo_id = 'IIBB' then
+		CASE when dr.nfRET_tipo_id like 'IIBB%' then
 			CASE WHEN CHARINDEX('-',dr.nfRET_Descripcion,1)=0 THEN 'DGR' 
 				else substring(dr.nfRET_Descripcion, 1, CHARINDEX('-',dr.nfRET_Descripcion,1)-1) 
 			end 
 		ELSE ''
 		END +','+																				--- campo 12 Resolución DGR
-		CASE when dr.nfRET_tipo_id = 'IIBB' then rtrim(left(C.Descripcion, 20)) ELSE '' END +','+	--- campo 13 Provincia
+		CASE when dr.nfRET_tipo_id like 'IIBB%' then rtrim(left(C.Descripcion, 20)) ELSE '' END +','+	--- campo 13 Provincia
 
-		CASE when dr.nfRET_tipo_id = 'IIBB' then 
+		CASE when dr.nfRET_tipo_id like 'IIBB%' then 
 			ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
 														else p.porc 
 														end AS DECIMAL(18,2))),'') 
 		 ELSE '' 
 		 END +','+																				--- campo 14 Porcentaje
 
-		CASE when dr.nfRET_tipo_id = 'IIBB' then 
+		CASE when dr.nfRET_tipo_id like 'IIBB%' then 
 			ISNULL(CONVERT(VARCHAR,CAST(case when p.porc=0 then DR.nfRET_Porcentaje/100 
 														else p.porc 
 														end AS DECIMAL(18,2))),'') 
@@ -165,11 +170,14 @@ begin
 			FOR XML PATH(''))
 			,1,1,'')
 		)+','																					--- campo 19 Relacion Retencion Factura
-	from tblPBE002 trx
-	inner join nfRET_GL10020 r 
+	from dbo.tblPBE002 trx
+	inner join dbo.nfRET_GL10020 r 
 		on R.APFRDCNM = TRX.VCHRNMBR
 		AND R.VENDORID = trx.VENDORID
-	inner join nfret_gl00030 dr on dr.nfRET_Retencion_ID=r.nfRET_Retencion_ID
+	inner join dbo.nfret_gl00030 dr 
+		on dr.nfRET_Retencion_ID = r.nfRET_Retencion_ID
+	left join dbo.nfRET_GL00010 tipoRet
+		on tipoRet.nfRET_tipo_id = dr.nfRET_tipo_id
 	outer apply (select max(b.PRCNTAGE) as porc
 				from nfRET_PM00201 b
 				where TII_MCP_From_Date=(select max(TII_MCP_From_Date)
@@ -179,10 +187,11 @@ begin
 				and nfRET_Tipo_ID = dr.nfRET_tipo_id
 				and vendorid = trx.VENDORID
 				) p
-	LEFT JOIN nfRET_SM40050 C ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
-	where trx.SelectedToSave=1
+	LEFT JOIN dbo.nfRET_SM40050 C 
+		ON C.nfRET_ID_Regimen=SUBSTRING(DR.nfRET_Regimen,case when charindex('-',dr.nfRET_Regimen,1)=0 then 20 else charindex('-',dr.nfRET_Regimen,1)+1 end,20)
+	where trx.SelectedToSave = 1
 	and r.nfRET_Importe_Retencion <> 0
-	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc,r.DEX_ROW_ID
+	group by r.nfRET_Retencion_ID, dr.nfRET_tipo_id, trx.VCHRNMBR,r.nfMCP_Printing_Number,trx.VENDORID,trx.DOCDATE,dr.nfRET_Regimen,c.nfRET_File_Code,c.Descripcion,r.nfRET_Fec_Retencion,dr.nfRET_Descripcion,dr.nfRET_Porcentaje,p.porc, tipoRet.nfRET_Descripcion, r.DEX_ROW_ID
 
 	--DROP TABLE #TMP
 	---Cabecera
@@ -199,3 +208,6 @@ go
 GRANT EXECUTE ON dbo.SP_PBEGP_Archivo_Pag_Fac_Ret TO DYNGRP
 go
 
+IF (@@Error = 0) PRINT 'Creación exitosa de: SP_PBEGP_Archivo_Pag_Fac_Ret'
+ELSE PRINT 'Error en la creación de: SP_PBEGP_Archivo_Pag_Fac_Ret'
+GO
